@@ -1,12 +1,19 @@
-
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 import { Octokit } from '@octokit/rest';
 import { PDFDocument, rgb } from 'pdf-lib';
 
 dotenv.config();
 const app = express();
+
+// 🛡️ ATIVA O CORS AQUI
+app.use(cors({
+  origin: 'https://danieldavidps94.github.io' // libera seu front-end do GitHub Pages
+}));
+
 app.use(express.json());
+
 
 app.post('/api/enviar', async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
