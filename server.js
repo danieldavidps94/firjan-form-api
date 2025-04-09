@@ -2,40 +2,62 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Octokit } from '@octokit/rest';
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 dotenv.config();
 const app = express();
 
-// 🛡️ ATIVA O CORS AQUI
-app.use(cors({
-  origin: 'https://danieldavidps94.github.io' // libera seu front-end do GitHub Pages
-}));
-
+// Libera o front-end do GitHub Pages
+app.use(cors({ origin: 'https://danieldavidps94.github.io' }));
 app.use(express.json());
-
 
 app.post('/api/enviar', async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
   const octokit = new Octokit({ auth: token });
 
-  const { nome, email, mensagem } = req.body;
+  const dados = req.body;
 
-  if (!nome || !email || !mensagem) {
-    return res.status(400).send("Campos obrigatórios faltando.");
+  if (!dados.responsavel_nome || !dados.responsavel_email) {
+    return res.status(400).send("Nome e e-mail do responsável são obrigatórios.");
   }
 
   try {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 400]);
+    const page = pdfDoc.addPage([600, 800]);
     const { height } = page.getSize();
-    const fontSize = 14;
+    const fontSize = 11;
+    const margin = 40;
 
-    page.drawText("Levantamento de Necessidades - Firjan", { x: 50, y: height - 50, size: fontSize + 2, color: rgb(0, 0, 0.8) });
-    page.drawText(`Nome: ${nome}`, { x: 50, y: height - 90, size: fontSize });
-    page.drawText(`Email: ${email}`, { x: 50, y: height - 120, size: fontSize });
-    page.drawText("Mensagem:", { x: 50, y: height - 150, size: fontSize });
-    page.drawText(mensagem, { x: 50, y: height - 180, size: fontSize, maxWidth: 500 });
+    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+
+    let y = height - margin;
+
+    page.drawText("Formulário - Levantamento de Necessidades", {
+      x: margin,
+      y,
+      size: 14,
+      font: timesRomanFont,
+      color: rgb(0, 0, 0.8)
+    });
+
+    y -= 30;
+
+    for (const [campo, valor] of Object.entries(dados)) {
+      if (y < 50) {
+        page = pdfDoc.addPage([600, 800]);
+        y = height - margin;
+      }
+
+      page.drawText(`${campo.replace(/_/g, ' ')}: ${valor}`, {
+        x: margin,
+        y,
+        size: fontSize,
+        font: timesRomanFont,
+        color: rgb(0.1, 0.1, 0.1)
+      });
+
+      y -= 18;
+    }
 
     const pdfBytes = await pdfDoc.save();
     const base64PDF = Buffer.from(pdfBytes).toString("base64");
@@ -45,13 +67,13 @@ app.post('/api/enviar', async (req, res) => {
       owner: "danieldavidps94",
       repo: "formularios-firjan",
       path: filename,
-      message: "Novo formulário via Render",
+      message: "Formulário completo enviado",
       content: base64PDF
     });
 
     res.status(200).send("PDF salvo com sucesso!");
   } catch (error) {
-    console.error("Erro ao processar:", error);
+    console.error("Erro ao processar envio:", error);
     res.status(500).send("Erro ao salvar PDF.");
   }
 });
