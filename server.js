@@ -23,7 +23,7 @@ app.post('/api/enviar', async (req, res) => {
 
   try {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
+    let page = pdfDoc.addPage([600, 800]);
     const { height } = page.getSize();
     const fontSize = 11;
     const margin = 40;
