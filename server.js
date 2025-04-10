@@ -7,7 +7,21 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 dotenv.config();
 const app = express();
 
-app.use(cors({ origin: 'https://danieldavidps94.github.io' }));
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "http://127.0.0.1:5500",
+      "https://danieldavidps94.github.io",
+      null // <- permite 'null' quando aberto localmente como file://
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
 app.use(express.json());
 
 app.post('/api/enviar', async (req, res) => {
