@@ -2,78 +2,89 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Octokit } from '@octokit/rest';
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 dotenv.config();
 const app = express();
 
-// 🛡️ ATIVA O CORS AQUI
-app.use(cors({
-  origin: 'https://danieldavidps94.github.io' // libera seu front-end do GitHub Pages
-}));
-
+app.use(cors({ origin: 'https://danieldavidps94.github.io' }));
 app.use(express.json());
 
-app.post("/api/enviar", async (req, res) => {
+app.post('/api/enviar', async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
-  const octokit = new Octokit({ auth: token });
   const dados = req.body;
 
-  if (!dados.responsavel_demanda || !dados.email_responsavel) {
-    return res.status(400).send("Campos obrigatórios ausentes.");
+  console.log("📩 Dados recebidos:", dados);
+
+  if (!dados.responsavel_nome || !dados.responsavel_email) {
+    console.warn("❌ Nome ou email do responsável ausente");
+    return res.status(400).send("Nome e e-mail do responsável são obrigatórios.");
   }
 
   try {
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage([600, 800]);
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const { height } = page.getSize();
-    let y = height - 40;
+    const fontSize = 11;
+    const margin = 40;
 
-    page.drawText("Levantamento de Necessidades - Firjan SENAI", {
-      x: 40,
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    let y = height - margin;
+
+    page.drawText("Formulário - Levantamento de Necessidades", {
+      x: margin,
       y,
-      size: 16,
+      size: 14,
       font,
-      color: rgb(0, 0.2, 0.6),
+      color: rgb(0, 0, 0.8),
     });
 
     y -= 30;
 
-    for (const [chave, valor] of Object.entries(dados)) {
-      const texto = `${chave.replace(/_/g, " ")}: ${valor}`;
-      const linhas = font.splitTextIntoLines(texto, 90);
-      for (const linha of linhas) {
-        if (y < 50) {
-          page = pdfDoc.addPage([600, 800]);
-          y = height - 40;
-        }
-        page.drawText(linha, { x: 40, y, size: 10, font, color: rgb(0, 0, 0) });
-        y -= 14;
+    for (const [campo, valor] of Object.entries(dados)) {
+      if (typeof valor !== "string") continue;
+
+      if (y < 50) {
+        page = pdfDoc.addPage([600, 800]);
+        y = height - margin;
       }
+
+      page.drawText(`${campo.replace(/_/g, " ")}: ${valor}`, {
+        x: margin,
+        y,
+        size: fontSize,
+        font,
+        color: rgb(0.1, 0.1, 0.1),
+      });
+
+      y -= 18;
     }
 
     const pdfBytes = await pdfDoc.save();
     const base64PDF = Buffer.from(pdfBytes).toString("base64");
+    const filename = `formularios/formulario-${Date.now()}.pdf`;
 
-    const nomeEmpresa = dados.empresa || "sem-nome";
-    const fileName = `levantamento-${nomeEmpresa.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+    const octokit = new Octokit({ auth: token });
+
+    console.log("📤 Enviando PDF para GitHub:", filename);
 
     await octokit.repos.createOrUpdateFileContents({
       owner: "danieldavidps94",
       repo: "formularios-firjan",
-      path: `formularios/${fileName}`,
-      message: `Formulário enviado: ${nomeEmpresa}`,
+      path: filename,
+      message: "Novo formulário completo enviado",
       content: base64PDF,
-      branch: "main",
     });
 
-    res.status(200).send("PDF enviado com sucesso para o GitHub!");
-  } catch (erro) {
-    console.error("Erro ao enviar PDF:", erro);
-    res.status(500).send("Erro ao gerar ou enviar PDF.");
+    console.log("✅ PDF salvo com sucesso!");
+    res.status(200).send("PDF salvo com sucesso!");
+  } catch (error) {
+    console.error("🔥 Erro ao salvar PDF:", error);
+    res.status(500).send("Erro ao salvar PDF.");
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
