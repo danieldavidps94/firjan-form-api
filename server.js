@@ -16,7 +16,7 @@ app.post('/api/enviar', async (req, res) => {
 
   console.log("📩 Dados recebidos:", dados);
 
-  if (!dados.responsavel_nome || !dados.responsavel_email) {
+  if (!dados.responsavel_demanda || !dados.email_demanda) {
     console.warn("❌ Nome ou email do responsável ausente");
     return res.status(400).send("Nome e e-mail do responsável são obrigatórios.");
   }
