@@ -10,14 +10,19 @@ const app = express();
 app.use(cors({ origin: 'https://danieldavidps94.github.io' }));
 app.use(express.json());
 
+// Endpoint de saúde para o UptimeRobot
+app.get('/ping', (req, res) => {
+  res.status(200).send('🟢 API online e saudável!');
+});
+
 app.post('/api/enviar', async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
   const dados = req.body;
 
-  console.log("📩 Dados recebidos:", dados);
+  console.log("\ud83d\udce9 Dados recebidos:", dados);
 
   if (!dados.responsavel_demanda || !dados.email_demanda) {
-    console.warn("❌ Nome ou email do responsável ausente");
+    console.warn("\u274c Nome ou email do responsável ausente");
     return res.status(400).send("Nome e e-mail do responsável são obrigatórios.");
   }
 
@@ -66,7 +71,7 @@ app.post('/api/enviar', async (req, res) => {
 
     const octokit = new Octokit({ auth: token });
 
-    console.log("📤 Enviando PDF para GitHub:", filename);
+    console.log("\ud83d\udce4 Enviando PDF para GitHub:", filename);
 
     await octokit.repos.createOrUpdateFileContents({
       owner: "danieldavidps94",
@@ -76,15 +81,15 @@ app.post('/api/enviar', async (req, res) => {
       content: base64PDF,
     });
 
-    console.log("✅ PDF salvo com sucesso!");
+    console.log("\u2705 PDF salvo com sucesso!");
     res.status(200).send("PDF salvo com sucesso!");
   } catch (error) {
-    console.error("🔥 Erro ao salvar PDF:", error);
+    console.error("\ud83d\udd25 Erro ao salvar PDF:", error);
     res.status(500).send("Erro ao salvar PDF.");
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`\ud83d\ude80 Servidor rodando na porta ${PORT}`);
 });
