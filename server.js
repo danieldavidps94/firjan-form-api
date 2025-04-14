@@ -16,7 +16,8 @@ app.get('/ping', (req, res) => {
 });
 
 app.post('/api/enviar', async (req, res) => {
-  const { dados, pdfBase64 } = req.body; // Agora recebe ambos
+  const token = process.env.GITHUB_TOKEN;
+  const dados = req.body;
 
   if (!dados.responsavel_demanda || !dados.email_demanda) {
     return res.status(400).send("Nome e e-mail do responsável são obrigatórios.");
