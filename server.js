@@ -11,7 +11,7 @@ const corsOptions = {
   origin: ['https://danieldavidps94.github.io', 'http://localhost:3000'],
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
-  credentials: false
+  optionsSuccessStatus: 200 // Para compatibilidade com navegadores antigos
 };
 
 app.use(cors(corsOptions));
@@ -52,7 +52,6 @@ app.post('/api/enviar', async (req, res) => {
   }
 
   try {
-    // ✅ Usa o PDF visual gerado no frontend
     const pdfBytes = Buffer.from(dados.pdf_base64, 'base64');
     const filename = `formularios/formulario-${Date.now()}-${dados.responsavel_demanda.replace(/\s+/g, '-')}.pdf`;
 
