@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Octokit } from '@octokit/rest';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 dotenv.config();
 const app = express();
@@ -32,7 +31,6 @@ app.get('/ping', (req, res) => {
 });
 
 app.post('/api/enviar', async (req, res) => {
-  // Cabeçalhos CORS explícitos
   res.header('Access-Control-Allow-Origin', 'https://danieldavidps94.github.io');
   res.header('Access-Control-Allow-Methods', 'POST');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
@@ -40,7 +38,7 @@ app.post('/api/enviar', async (req, res) => {
   const token = process.env.GITHUB_TOKEN;
   const dados = req.body;
 
-  // Validação robusta
+  // Validação básica
   if (!dados.responsavel_demanda || !dados.email_demanda || !dados.nome_ponto_focal) {
     return res.status(400).json({ 
       error: "Campos obrigatórios faltando",
@@ -59,48 +57,8 @@ app.post('/api/enviar', async (req, res) => {
   }
 
   try {
-    // Criação do PDF
-    const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage([600, 800]);
-    const { height } = page.getSize();
-    const fontSize = 11;
-    const margin = 40;
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    let y = height - margin;
-
-    // Cabeçalho do PDF
-    page.drawText("Formulário de Levantamento de Necessidades", {
-      x: margin,
-      y,
-      size: 14,
-      font,
-      color: rgb(0, 0, 0.8),
-    });
-    y -= 30;
-
-    // Adiciona conteúdo ao PDF
-    for (const [campo, valor] of Object.entries(dados)) {
-      if (campo === 'pdf_base64') continue;
-      
-      if (y < 50) {
-        page = pdfDoc.addPage([600, 800]);
-        y = height - margin;
-      }
-
-      const text = `${campo.replace(/_/g, ' ')}: ${Array.isArray(valor) ? valor.join(', ') : valor}`;
-      page.drawText(text, {
-        x: margin,
-        y,
-        size: fontSize,
-        font,
-        color: rgb(0.1, 0.1, 0.1),
-        maxWidth: pdfDoc.getPage(0).getWidth() - margin * 2
-      });
-
-      y -= 18;
-    }
-
-    const pdfBytes = await pdfDoc.save();
+    // Usa o PDF visual vindo do frontend
+    const pdfBytes = Buffer.from(dados.pdf_base64, 'base64');
     const filename = `formularios/formulario-${Date.now()}-${dados.responsavel_demanda.replace(/\s+/g, '-')}.pdf`;
 
     // Envio para o GitHub
@@ -110,7 +68,7 @@ app.post('/api/enviar', async (req, res) => {
       repo: "formularios-firjan",
       path: filename,
       message: `Novo formulário: ${dados.responsavel_demanda}`,
-      content: Buffer.from(pdfBytes).toString('base64'),
+      content: pdfBytes.toString('base64'),
     });
 
     res.status(200).json({
