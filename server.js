@@ -6,41 +6,37 @@ import { Octokit } from '@octokit/rest';
 dotenv.config();
 const app = express();
 
-// Configuração robusta do CORS
-app.use(cors({
+// ✅ Configuração segura e funcional de CORS
+const corsOptions = {
   origin: ['https://danieldavidps94.github.io', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  maxAge: 86400
-}));
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+  credentials: false
+};
+
+app.use(cors(corsOptions));
+
+// ✅ Aumenta o limite do body para 200MB
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
 // Middleware para debug
 app.use((req, res, next) => {
   console.log(`Recebida requisição: ${req.method} ${req.path}`);
-  console.log('Headers:', req.headers);
   next();
 });
-
-app.options('*', cors());
-app.use(express.json({ limit: '2000mb' }));
-app.use(express.urlencoded({ extended: true, limit: '2000mb' }));
 
 app.get('/ping', (req, res) => {
   res.status(200).json({ status: 'online', timestamp: new Date() });
 });
 
+// ✅ Endpoint principal de envio
 app.post('/api/enviar', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://danieldavidps94.github.io');
-  res.header('Access-Control-Allow-Methods', 'POST');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-
   const token = process.env.GITHUB_TOKEN;
   const dados = req.body;
 
-  // Validação básica
   if (!dados.responsavel_demanda || !dados.email_demanda || !dados.nome_ponto_focal) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       error: "Campos obrigatórios faltando",
       requiredFields: {
         responsavel_demanda: "Nome completo do responsável",
@@ -50,18 +46,16 @@ app.post('/api/enviar', async (req, res) => {
     });
   }
 
-  // Validação de e-mail
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(dados.email_demanda)) {
     return res.status(400).json({ error: "Formato de e-mail inválido" });
   }
 
   try {
-    // Usa o PDF visual vindo do frontend
+    // ✅ Usa o PDF visual gerado no frontend
     const pdfBytes = Buffer.from(dados.pdf_base64, 'base64');
     const filename = `formularios/formulario-${Date.now()}-${dados.responsavel_demanda.replace(/\s+/g, '-')}.pdf`;
 
-    // Envio para o GitHub
     const octokit = new Octokit({ auth: token });
     await octokit.repos.createOrUpdateFileContents({
       owner: "danieldavidps94",
