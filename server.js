@@ -23,8 +23,8 @@ app.use((req, res, next) => {
 });
 
 app.options('*', cors());
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '2000mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2000mb' }));
 
 app.get('/ping', (req, res) => {
   res.status(200).json({ status: 'online', timestamp: new Date() });
