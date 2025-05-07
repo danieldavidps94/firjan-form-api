@@ -4,65 +4,39 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
-// Configuração inicial
 dotenv.config();
 const app = express();
-
-// Verificação de variáveis críticas
-if (!process.env.APP_USER || !process.env.APP_PASSWORD) {
-  throw new Error('Variáveis de ambiente APP_USER e APP_PASSWORD são obrigatórias!');
-}
-if (!process.env.GITHUB_TOKEN) {
-  throw new Error('Variável de ambiente GITHUB_TOKEN é obrigatória!');
-}
-
-// Constantes
-const APP_USER = process.env.APP_USER;
-const APP_PASSWORD = process.env.APP_PASSWORD;
-const PORT = process.env.PORT || 10000;
-const GITHUB_OWNER = 'danieldavidps94';
-const GITHUB_REPO = 'formularios-firjan';
-
-// Middlewares
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  methods: ['POST', 'GET']
-}));
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Função auxiliar para novas páginas PDF
-const addNewPage = (pdfDoc) => {
-  const newPage = pdfDoc.addPage([595, 842]);
-  return { page: newPage, y: 750 };
-};
-
-// Rota de login melhorada
+// Rota de login simplificada
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
-  // Validação reforçada
-  if (typeof username !== 'string' || 
-      typeof password !== 'string' ||
-      username.trim() === '' || 
-      password.trim() === '') {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Credenciais inválidas' 
-    });
+  // Validação básica
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Credenciais não fornecidas' });
   }
 
+  // Comparação segura direta (apenas para este caso específico)
   if (username === APP_USER && password === APP_PASSWORD) {
     return res.json({ success: true });
   }
 
+  // Credenciais inválidas
   return res.status(401).json({ success: false });
 });
 
-// Rota de envio de formulário
+const PORT = process.env.PORT || 10000;
+const GITHUB_OWNER = 'danieldavidps94';
+const GITHUB_REPO = 'formularios-firjan';
+
+const APP_USER = process.env.APP_USER || 'admin';
+const APP_PASSWORD = process.env.APP_PASSWORD || 'admin';
+
 app.post('/enviar', async (req, res) => {
-  try {
-    const formData = req.body;
+  const formData = req.body;
 
   // Campos com nomes legíveis personalizados
   const camposLegiveis = {
@@ -158,17 +132,26 @@ app.post('/enviar', async (req, res) => {
 
   try {
     const pdfDoc = await PDFDocument.create();
-    let { page, y } = addNewPage(pdfDoc);
+    let page = pdfDoc.addPage([595, 842]); // A4
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Constantes de formatação
+    let y = 750;
     const margin = 50;
     const fontSize = 10;
     const lineHeight = 14;
     const maxWidth = 495;
 
+    // Função para gerar rótulo amigável
+    const gerarRotulo = (chave) => {
+      if (camposLegiveis[chave]) return camposLegiveis[chave];
+      return chave
+        .replace(/_/g, ' ')               // snake_case -> espaço
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase -> espaço
+        .replace(/\b\w/g, l => l.toUpperCase()); // primeira letra maiúscula
+    };
+
     // Função para quebrar texto em linhas
-    const wrapText = (text) => {
+    const wrapText = (text, maxWidth) => {
       const words = text.split(' ');
       const lines = [];
       let line = '';
@@ -183,11 +166,11 @@ app.post('/enviar', async (req, res) => {
           line = testLine;
         }
       }
-      lines.push(line.trim());
+      if (line) lines.push(line.trim());
       return lines;
     };
 
-    // Cabeçalho
+    // Título
     page.drawText('Formulário de Levantamento de Necessidades', {
       x: margin,
       y,
@@ -197,22 +180,23 @@ app.post('/enviar', async (req, res) => {
     });
     y -= lineHeight * 2;
 
-    // Conteúdo dinâmico
+    // Iterar sobre todos os campos recebidos
     for (const campo of Object.keys(formData)) {
-      const rotulo = camposLegiveis[campo] || campo
-        .replace(/_/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/\b\w/g, l => l.toUpperCase());
+      const rotulo = gerarRotulo(campo);
+      const valorBruto = formData[campo];
+      const valor = Array.isArray(valorBruto)
+        ? valorBruto.join(', ')
+        : valorBruto || '—';
 
-      const valor = Array.isArray(formData[campo]) 
-        ? formData[campo].join(', ') 
-        : formData[campo] || '—';
-
-      const linhas = wrapText(`${rotulo}: ${valor}`);
+      const textoCompleto = `${rotulo}: ${valor}`;
+      const linhas = wrapText(textoCompleto, maxWidth);
 
       for (const linha of linhas) {
-        if (y < 50) ({ page, y } = addNewPage(pdfDoc));
-        
+        if (y < 50) {
+          page = pdfDoc.addPage([595, 842]);
+          y = 750;
+        }
+
         page.drawText(linha, {
           x: margin,
           y,
@@ -224,29 +208,52 @@ app.post('/enviar', async (req, res) => {
       }
     }
 
-    // Rodapé melhorado
-    const footerContent = [
-      `Enviado em: ${new Date().toLocaleString('pt-BR')}`,
-      `Assinado por: ${formData.email_demanda || 'Não informado'}`
-    ];
+    // Adicionar data de envio
+    const dataAtual = new Date();
+    const dataFormatada = dataAtual.toLocaleDateString('pt-BR') + ' ' + dataAtual.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-    for (const texto of footerContent) {
-      if (y < 50) ({ page, y } = addNewPage(pdfDoc));
-      
-      page.drawText(texto, {
-        x: margin,
-        y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-      y -= lineHeight * 2;
+    const textoData = `Enviado em: ${dataFormatada}`;
+
+    // Se estiver perto do fim da página, cria nova página
+    if (y < 50) {
+      page = pdfDoc.addPage([595, 842]);
+      y = 750;
     }
 
-    // Upload para GitHub
+    y -= lineHeight * 2;
+    page.drawText(textoData, {
+      x: margin,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    y -= lineHeight * 2;
+
+    // Assinatura (Nome ou email do responsável)
+    const nomeOuEmail = formData['email_demanda'] || 'Assinante desconhecido';  // Nome ou e-mail que veio no formulário
+    const textoAssinatura = `Assinado por: ${nomeOuEmail}`;
+
+    if (y < 50) {
+      page = pdfDoc.addPage([595, 842]);
+      y = 750;
+    }
+
+    page.drawText(textoAssinatura, {
+      x: margin,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
     const pdfBytes = await pdfDoc.save();
+
     const filename = `formulario-${Date.now()}.pdf`;
-    
     await axios.put(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
       {
@@ -262,18 +269,12 @@ app.post('/enviar', async (req, res) => {
     );
 
     res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
-
   } catch (error) {
-    console.error('Erro detalhado:', error.response?.data || error.message);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Erro interno no processamento do formulário' 
-    });
+    console.error('Erro:', error.message);
+    res.status(500).json({ success: false, message: 'Erro ao enviar formulário.' });
   }
 });
 
-// Inicialização do servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
-  console.log(`Modo: ${process.env.NODE_ENV || 'development'}`);
 });
