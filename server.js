@@ -6,6 +6,11 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 dotenv.config();
 
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Rota de login simplificada
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
@@ -24,10 +29,6 @@ app.post('/login', (req, res) => {
   return res.status(401).json({ success: false });
 });
 
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
