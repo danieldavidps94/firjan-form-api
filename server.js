@@ -17,13 +17,36 @@ const GITHUB_REPO = 'formularios-firjan';
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
+  // Mapeamento de campos legíveis
+  const camposLegiveis = {
+    responsavel_demanda: 'Responsável pela Demanda',
+    instituicao_demanda: 'Instituição (Demanda)',
+    area_demanda: 'Área (Demanda)',
+    cargo_demanda: 'Cargo (Demanda)',
+    email_demanda: 'Email (Demanda)',
+    telefone_demanda: 'Telefone (Demanda)',
+    funcao_demanda: 'Função (Demanda)',
+
+    nome_ponto_focal: 'Ponto Focal',
+    instituicao_ponto_focal: 'Instituição (Ponto Focal)',
+    area_ponto_focal: 'Área (Ponto Focal)',
+    cargo_ponto_focal: 'Cargo (Ponto Focal)',
+    email_ponto_focal: 'Email (Ponto Focal)',
+    telefone_ponto_focal: 'Telefone (Ponto Focal)',
+    funcao_ponto_focal: 'Função (Ponto Focal)',
+
+    descricao_demanda: 'Descrição da Demanda',
+    publico_atingido: 'Público Atingido',
+    objetivos: 'Objetivos da Demanda',
+    resultados_esperados: 'Resultados Esperados',
+  };
+
   try {
-    // 1. Criar PDF otimizado
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage([595, 842]); // A4 em pontos (72dpi)
+    let page = pdfDoc.addPage([595, 842]); // A4
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    let y = 750; // Posição inicial Y
+    let y = 750;
     const margin = 50;
     const fontSize = 10;
     const lineHeight = 14;
@@ -38,11 +61,14 @@ app.post('/enviar', async (req, res) => {
     });
     y -= lineHeight * 2;
 
-    // Conteúdo
-    for (const [campo, valor] of Object.entries(formData)) {
+    // Percorrer todos os campos, mesmo se não enviados
+    for (const campo in camposLegiveis) {
+      const rotulo = camposLegiveis[campo];
+      const valor = formData[campo];
+
       const texto = Array.isArray(valor)
-        ? `${campo}: ${valor.join(', ')}`
-        : `${campo}: ${valor}`;
+        ? `${rotulo}: ${valor.join(', ')}`
+        : `${rotulo}: ${valor || '—'}`; // mostra traço se estiver vazio
 
       page.drawText(texto, {
         x: margin,
@@ -54,16 +80,14 @@ app.post('/enviar', async (req, res) => {
 
       y -= lineHeight;
 
-      // Nova página se necessário
       if (y < 50) {
-        page = pdfDoc.addPage([595, 842]); // ← sem erro agora, pois page é 'let'
+        page = pdfDoc.addPage([595, 842]);
         y = 750;
       }
     }
 
     const pdfBytes = await pdfDoc.save();
 
-    // 2. Enviar para o GitHub
     const filename = `formulario-${Date.now()}.pdf`;
     await axios.put(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
