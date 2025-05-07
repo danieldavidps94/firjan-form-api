@@ -20,7 +20,7 @@ app.post('/enviar', async (req, res) => {
   try {
     // 1. Criar PDF otimizado
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595, 842]); // A4 em pontos (72dpi)
+    let page = pdfDoc.addPage([595, 842]);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     let y = 750; // Posição inicial Y
