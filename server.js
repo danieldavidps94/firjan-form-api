@@ -10,9 +10,30 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Rota de login simplificada
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // Validação básica
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Credenciais não fornecidas' });
+  }
+
+  // Comparação segura direta (apenas para este caso específico)
+  if (username === APP_USER && password === APP_PASSWORD) {
+    return res.json({ success: true });
+  }
+
+  // Credenciais inválidas
+  return res.status(401).json({ success: false });
+});
+
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
 const GITHUB_REPO = 'formularios-firjan';
+
+const APP_USER = process.env.APP_USER || 'admin';
+const APP_PASSWORD = process.env.APP_PASSWORD || 'admin';
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
