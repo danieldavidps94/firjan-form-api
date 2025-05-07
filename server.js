@@ -20,7 +20,7 @@ app.post('/enviar', async (req, res) => {
   try {
     // 1. Criar PDF otimizado
     const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage([595, 842]);
+    let page = pdfDoc.addPage([595, 842]); // A4 em pontos (72dpi)
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     let y = 750; // Posição inicial Y
@@ -40,28 +40,23 @@ app.post('/enviar', async (req, res) => {
 
     // Conteúdo
     for (const [campo, valor] of Object.entries(formData)) {
-      if (Array.isArray(valor)) {
-        page.drawText(`${campo}: ${valor.join(', ')}`, {
-          x: margin,
-          y,
-          size: fontSize,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      } else {
-        page.drawText(`${campo}: ${valor}`, {
-          x: margin,
-          y,
-          size: fontSize,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      }
+      const texto = Array.isArray(valor)
+        ? `${campo}: ${valor.join(', ')}`
+        : `${campo}: ${valor}`;
+
+      page.drawText(texto, {
+        x: margin,
+        y,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+
       y -= lineHeight;
 
       // Nova página se necessário
       if (y < 50) {
-        page = pdfDoc.addPage([595, 842]);
+        page = pdfDoc.addPage([595, 842]); // ← sem erro agora, pois page é 'let'
         y = 750;
       }
     }
