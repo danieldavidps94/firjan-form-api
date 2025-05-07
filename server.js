@@ -17,7 +17,7 @@ const GITHUB_REPO = 'formularios-firjan';
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
-  // Mapeamento de campos legíveis
+  // Campos com nomes legíveis personalizados
   const camposLegiveis = {
     responsavel_demanda: 'Responsável pela Demanda',
     instituicao_demanda: 'Instituição (Demanda)',
@@ -50,6 +50,36 @@ app.post('/enviar', async (req, res) => {
     const margin = 50;
     const fontSize = 10;
     const lineHeight = 14;
+    const maxWidth = 495;
+
+    // Função para gerar rótulo amigável
+    const gerarRotulo = (chave) => {
+      if (camposLegiveis[chave]) return camposLegiveis[chave];
+      return chave
+        .replace(/_/g, ' ')               // snake_case -> espaço
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase -> espaço
+        .replace(/\b\w/g, l => l.toUpperCase()); // primeira letra maiúscula
+    };
+
+    // Função para quebrar texto em linhas
+    const wrapText = (text, maxWidth) => {
+      const words = text.split(' ');
+      const lines = [];
+      let line = '';
+
+      for (const word of words) {
+        const testLine = line + word + ' ';
+        const width = font.widthOfTextAtSize(testLine, fontSize);
+        if (width > maxWidth && line !== '') {
+          lines.push(line.trim());
+          line = word + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) lines.push(line.trim());
+      return lines;
+    };
 
     // Título
     page.drawText('Formulário de Levantamento de Necessidades', {
@@ -61,30 +91,76 @@ app.post('/enviar', async (req, res) => {
     });
     y -= lineHeight * 2;
 
-    // Percorrer todos os campos, mesmo se não enviados
-    for (const campo in camposLegiveis) {
-      const rotulo = camposLegiveis[campo];
-      const valor = formData[campo];
+    // Iterar sobre todos os campos recebidos
+    for (const campo of Object.keys(formData)) {
+      const rotulo = gerarRotulo(campo);
+      const valorBruto = formData[campo];
+      const valor = Array.isArray(valorBruto)
+        ? valorBruto.join(', ')
+        : valorBruto || '—';
 
-      const texto = Array.isArray(valor)
-        ? `${rotulo}: ${valor.join(', ')}`
-        : `${rotulo}: ${valor || '—'}`; // mostra traço se estiver vazio
+      const textoCompleto = `${rotulo}: ${valor}`;
+      const linhas = wrapText(textoCompleto, maxWidth);
 
-      page.drawText(texto, {
-        x: margin,
-        y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
+      for (const linha of linhas) {
+        if (y < 50) {
+          page = pdfDoc.addPage([595, 842]);
+          y = 750;
+        }
 
-      y -= lineHeight;
-
-      if (y < 50) {
-        page = pdfDoc.addPage([595, 842]);
-        y = 750;
+        page.drawText(linha, {
+          x: margin,
+          y,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+        y -= lineHeight;
       }
     }
+
+    // Adicionar data de envio
+    const dataAtual = new Date();
+    const dataFormatada = dataAtual.toLocaleDateString('pt-BR') + ' ' + dataAtual.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const textoData = `Enviado em: ${dataFormatada}`;
+
+    // Se estiver perto do fim da página, cria nova página
+    if (y < 50) {
+      page = pdfDoc.addPage([595, 842]);
+      y = 750;
+    }
+
+    y -= lineHeight * 2;
+    page.drawText(textoData, {
+      x: margin,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    y -= lineHeight * 2;
+
+    // Assinatura (Nome ou email do responsável)
+    const nomeOuEmail = formData['email_demanda'] || 'Assinante desconhecido';  // Nome ou e-mail que veio no formulário
+    const textoAssinatura = `Assinado por: ${nomeOuEmail}`;
+
+    if (y < 50) {
+      page = pdfDoc.addPage([595, 842]);
+      y = 750;
+    }
+
+    page.drawText(textoAssinatura, {
+      x: margin,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
 
     const pdfBytes = await pdfDoc.save();
 
