@@ -11,8 +11,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const PORT = process.env.PORT || 3000;
-
-// Dados fixos do repositório
 const GITHUB_OWNER = 'danieldavidps94';
 const GITHUB_REPO = 'formularios-firjan';
 
@@ -20,38 +18,63 @@ app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
   try {
-    // 1. Criar PDF simples
+    // 1. Criar PDF otimizado
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    const { width, height } = page.getSize();
+    const page = pdfDoc.addPage([595, 842]); // A4 em pontos (72dpi)
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    const fontSize = 12;
+    let y = 750; // Posição inicial Y
     const margin = 50;
-    let y = height - margin;
+    const fontSize = 10;
+    const lineHeight = 14;
 
+    // Título
+    page.drawText('Formulário de Levantamento de Necessidades', {
+      x: margin,
+      y,
+      size: 14,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    y -= lineHeight * 2;
+
+    // Conteúdo
     for (const [campo, valor] of Object.entries(formData)) {
-      page.drawText(`${campo}: ${valor}`, {
-        x: margin,
-        y: y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-      y -= fontSize + 8;
+      if (Array.isArray(valor)) {
+        page.drawText(`${campo}: ${valor.join(', ')}`, {
+          x: margin,
+          y,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      } else {
+        page.drawText(`${campo}: ${valor}`, {
+          x: margin,
+          y,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+      }
+      y -= lineHeight;
+
+      // Nova página se necessário
+      if (y < 50) {
+        page = pdfDoc.addPage([595, 842]);
+        y = 750;
+      }
     }
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
     // 2. Enviar para o GitHub
     const filename = `formulario-${Date.now()}.pdf`;
-
     await axios.put(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
       {
-        message: `Novo envio de formulário: ${filename}`,
-        content: pdfBase64,
+        message: `Novo formulário: ${filename}`,
+        content: Buffer.from(pdfBytes).toString('base64'),
       },
       {
         headers: {
@@ -61,10 +84,10 @@ app.post('/enviar', async (req, res) => {
       }
     );
 
-    res.status(200).json({ success: true, message: 'Formulário enviado e PDF salvo com sucesso.' });
+    res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
   } catch (error) {
-    console.error('Erro ao processar:', error.message);
-    res.status(500).json({ success: false, message: 'Erro ao gerar ou enviar o PDF.' });
+    console.error('Erro:', error.message);
+    res.status(500).json({ success: false, message: 'Erro ao enviar formulário.' });
   }
 });
 
