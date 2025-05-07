@@ -5,10 +5,6 @@ import axios from 'axios';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rota de login simplificada
 app.post('/login', (req, res) => {
@@ -28,10 +24,14 @@ app.post('/login', (req, res) => {
   return res.status(401).json({ success: false });
 });
 
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
 const GITHUB_REPO = 'formularios-firjan';
-
 const APP_USER = process.env.APP_USER || 'admin';
 const APP_PASSWORD = process.env.APP_PASSWORD || 'admin';
 
