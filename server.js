@@ -25,12 +25,6 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({
-  origin: 'https://danieldavidps94.github.io',
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.set('view engine', 'ejs');
