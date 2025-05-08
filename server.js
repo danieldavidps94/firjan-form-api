@@ -1,4 +1,3 @@
-// server.js (versão completa com Puppeteer para PDF visual fiel)
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -15,12 +14,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors());
+
+// Configuração de CORS para permitir apenas requisições do GitHub Pages
+app.use(cors({
+  origin: 'https://danieldavidps94.github.io', // Permite requisições apenas do seu domínio
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use('/public', express.static(path.join(__dirname, 'public')));
+
+// Tratar requisições OPTIONS (Preflight)
+app.options('*', cors());
 
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
@@ -43,17 +52,22 @@ app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
   try {
+    // Gerar o conteúdo HTML do formulário
     const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
 
-    const browser = await puppeteer.launch({ headless: 'new' });
+    // Inicializar o Puppeteer e gerar o PDF
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
-
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
 
+    // Fechar o navegador
     await browser.close();
 
+    // Definir o nome do arquivo PDF
     const filename = `formulario-${Date.now()}.pdf`;
+
+    // Enviar o PDF para o GitHub
     await axios.put(
       `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
       {
@@ -68,6 +82,7 @@ app.post('/enviar', async (req, res) => {
       }
     );
 
+    // Retornar sucesso
     res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
   } catch (error) {
     console.error('Erro ao gerar PDF:', error);
