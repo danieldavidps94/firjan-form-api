@@ -56,7 +56,11 @@ app.post('/enviar', async (req, res) => {
     const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
 
     // Inicializar o Puppeteer e gerar o PDF
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: '/usr/bin/google-chrome',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
