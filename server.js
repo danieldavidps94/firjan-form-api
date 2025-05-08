@@ -15,9 +15,18 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Configuração de CORS para permitir apenas requisições do GitHub Pages
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://danieldavidps94.github.io');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(cors({
-  origin: 'https://danieldavidps94.github.io', // Permite requisições apenas do seu domínio
+  origin: 'https://danieldavidps94.github.io',
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -27,9 +36,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use('/public', express.static(path.join(__dirname, 'public')));
-
-// Tratar requisições OPTIONS (Preflight)
-app.options('*', cors());
 
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
@@ -53,7 +59,7 @@ app.post('/enviar', async (req, res) => {
 
   try {
     // Gerar o conteúdo HTML do formulário
-    const html = await ejs.renderFile(path.resolve(__dirname, '../formulario-firjan-front/views', 'formulario.ejs'), { dados: formData });
+    const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
 
     // Inicializar o Puppeteer e gerar o PDF
     const browser = await puppeteer.launch({ headless: true });
