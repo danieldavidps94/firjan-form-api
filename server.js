@@ -53,7 +53,7 @@ app.post('/enviar', async (req, res) => {
 
   try {
     // Gerar o conteúdo HTML do formulário
-    const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
+    const html = await ejs.renderFile(path.resolve(__dirname, '../formulario-firjan-front/views', 'formulario.ejs'), { dados: formData });
 
     // Inicializar o Puppeteer e gerar o PDF
     const browser = await puppeteer.launch({ headless: true });
