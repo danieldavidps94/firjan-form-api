@@ -1,9 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import axios from 'axios';
 import PdfPrinter from 'pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // ✅ CORRETO com .js
+import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // Importa corretamente com .js
 
 dotenv.config();
 
@@ -13,6 +12,7 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 10000;
 
+// Usa a fonte Roboto (única disponível por padrão no pdfmake)
 const fonts = {
   Roboto: {
     normal: 'Roboto-Regular',
@@ -22,9 +22,10 @@ const fonts = {
   },
 };
 
-// Criação da instância do printer
 const printer = new PdfPrinter(fonts);
-printer.vfs = pdfFonts.pdfMake.vfs; // ✅ necessário para que pdfmake encontre as fontes
+
+// ✅ CORRETO: acessa vfs diretamente
+printer.vfs = pdfFonts.vfs;
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
@@ -34,7 +35,7 @@ app.post('/enviar', async (req, res) => {
       { text: 'Formulário - Firjan SENAI', style: 'header' },
       '\n',
       ...Object.entries(formData).map(([key, value]) => ({
-        text: `${key}: ${Array.isArray(value) ? value.join(', ') : value}`,
+        text: `${formatarCampo(key)}: ${Array.isArray(value) ? value.join(', ') : value}`,
         margin: [0, 2],
       }))
     ],
@@ -46,7 +47,7 @@ app.post('/enviar', async (req, res) => {
   const pdfDoc = printer.createPdfKitDocument(docDefinition);
   const chunks = [];
 
-  pdfDoc.on('data', (chunk) => chunks.push(chunk));
+  pdfDoc.on('data', chunk => chunks.push(chunk));
   pdfDoc.on('end', () => {
     const pdfBuffer = Buffer.concat(chunks);
     res.setHeader('Content-Type', 'application/pdf');
@@ -55,6 +56,10 @@ app.post('/enviar', async (req, res) => {
 
   pdfDoc.end();
 });
+
+function formatarCampo(campo) {
+  return campo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
