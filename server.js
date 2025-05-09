@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
 import PdfPrinter from 'pdfmake';
-import { vfs } from 'pdfmake/build/vfs_fonts.js'; // ✅ vfs diretamente importado
+import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // Importação CommonJS como default
 
 dotenv.config();
 
@@ -23,7 +23,7 @@ const fonts = {
 };
 
 const printer = new PdfPrinter(fonts);
-printer.vfs = vfs; // ✅ atribui vfs diretamente
+printer.vfs = pdfFonts.pdfMake.vfs; // ✅ Acesso à propriedade correta
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
