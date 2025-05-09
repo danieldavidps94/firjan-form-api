@@ -1,9 +1,7 @@
 import express from 'express';
+import { jsPDF } from 'jspdf';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import PdfPrinter from 'pdfmake';
-import fs from 'fs';
-import path from 'path';
 
 dotenv.config();
 
@@ -13,55 +11,32 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Carregar as fontes do vfs_fonts corretamente
-import pdfFonts from 'pdfmake/build/vfs_fonts';
-
-// Definição da fonte
-const fonts = {
-  Roboto: {
-    normal: 'Roboto-Regular.ttf',
-    bold: 'Roboto-Medium.ttf',
-    italics: 'Roboto-Italic.ttf',
-    bolditalics: 'Roboto-MediumItalic.ttf',
-  }
-};
-
-const printer = new PdfPrinter(fonts);
-
-// Carregar o vfsFonts para uso
-printer.vfs = pdfFonts.pdfMake.vfs; 
-
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
-  const docDefinition = {
-    content: [
-      { text: 'Formulário - Firjan SENAI', style: 'header' },
-      '\n',
-      ...Object.entries(formData).map(([key, value]) => ({
-        text: `${key}: ${Array.isArray(value) ? value.join(', ') : value}`,
-        margin: [0, 2]
-      }))
-    ],
-    styles: {
-      header: { fontSize: 16, bold: true, alignment: 'center' }
-    },
-    defaultStyle: {
-      font: 'Roboto'
-    }
-  };
+  try {
+    // Criar um novo documento PDF
+    const doc = new jsPDF();
+    doc.setFontSize(16);
 
-  const pdfDoc = printer.createPdfKitDocument(docDefinition);
-  const chunks = [];
+    // Adicionar título
+    doc.text('Formulário - Firjan SENAI', 10, 20);
 
-  pdfDoc.on('data', (chunk) => chunks.push(chunk));
-  pdfDoc.on('end', () => {
-    const pdfBuffer = Buffer.concat(chunks);
+    // Adicionar os dados do formulário
+    let yPosition = 30;
+    Object.entries(formData).forEach(([key, value]) => {
+      doc.text(`${key}: ${Array.isArray(value) ? value.join(', ') : value}`, 10, yPosition);
+      yPosition += 10;
+    });
+
+    // Gerar o PDF e enviar como resposta
+    const pdfBuffer = doc.output('arraybuffer');
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(pdfBuffer);
-  });
-
-  pdfDoc.end();
+    res.send(Buffer.from(pdfBuffer));
+  } catch (err) {
+    console.error('Erro ao gerar PDF:', err);
+    res.status(500).send({ error: 'Erro ao gerar PDF' });
+  }
 });
 
 app.listen(PORT, () => {
