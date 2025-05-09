@@ -5,7 +5,7 @@ import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import PdfPrinter from 'pdfmake';
-import vfsFonts from 'pdfmake/build/vfs_fonts.js';
+import pdfFonts from 'pdfmake/build/vfs_fonts';
 
 dotenv.config();
 
