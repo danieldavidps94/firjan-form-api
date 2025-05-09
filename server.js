@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import puppeteer from 'puppeteer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -54,12 +53,6 @@ app.post('/enviar', async (req, res) => {
   try {
     // Gerar o conteúdo HTML do formulário
     const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
-
-    // Inicializar o Puppeteer e gerar o PDF
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
