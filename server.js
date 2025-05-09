@@ -8,7 +8,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://danieldavidps94.github.io', // Substitua pela URL do seu frontend
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type'],
+}));
 app.use(express.json({ limit: '10mb' }));
 
 // Adicionando o endpoint de login
