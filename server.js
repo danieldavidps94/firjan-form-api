@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
-import ejs from 'ejs';
+import PdfPrinter from 'pdfmake';
+import vfsFonts from 'pdfmake/build/vfs_fonts.js';
 
 dotenv.config();
 
@@ -18,17 +18,12 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', 'https://danieldavidps94.github.io');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
-app.use('/public', express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 10000;
 const GITHUB_OWNER = 'danieldavidps94';
@@ -51,40 +46,71 @@ app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
   try {
-    // Gerar o conteúdo HTML do formulário
-    const html = await ejs.renderFile(path.join(__dirname, 'views', 'formulario.ejs'), { dados: formData });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-
-    // Fechar o navegador
-    await browser.close();
-
-    // Definir o nome do arquivo PDF
-    const filename = `formulario-${Date.now()}.pdf`;
-
-    // Enviar o PDF para o GitHub
-    await axios.put(
-      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
-      {
-        message: `Novo formulário: ${filename}`,
-        content: Buffer.from(pdfBuffer).toString('base64'),
-      },
-      {
-        headers: {
-          Authorization: `token ${process.env.GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github+json',
-        },
+    // Criar PDF com pdfmake
+    const fonts = {
+      Roboto: {
+        normal: Buffer.from(vfsFonts.pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
+        bold: Buffer.from(vfsFonts.pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
+        italics: Buffer.from(vfsFonts.pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
+        bolditalics: Buffer.from(vfsFonts.pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64'),
       }
-    );
+    };
 
-    // Retornar sucesso
-    res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
+    const printer = new PdfPrinter(fonts);
+
+    const docDefinition = {
+      content: [
+        { text: 'Formulário - Firjan SENAI', style: 'header' },
+        '\n',
+        ...Object.entries(formData).map(([key, value]) => ({
+          text: `${formatarCampo(key)}: ${Array.isArray(value) ? value.join(', ') : value}`,
+          margin: [0, 2],
+        }))
+      ],
+      styles: {
+        header: { fontSize: 16, bold: true, alignment: 'center' }
+      }
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const chunks = [];
+
+    pdfDoc.on('data', (chunk) => chunks.push(chunk));
+    pdfDoc.on('end', async () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      const filename = `formulario-${Date.now()}.pdf`;
+
+      // Enviar PDF para GitHub
+      await axios.put(
+        `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
+        {
+          message: `Novo formulário: ${filename}`,
+          content: pdfBuffer.toString('base64'),
+        },
+        {
+          headers: {
+            Authorization: `token ${process.env.GITHUB_TOKEN}`,
+            Accept: 'application/vnd.github+json',
+          },
+        }
+      );
+
+      res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
+    });
+
+    pdfDoc.end();
   } catch (error) {
     console.error('Erro ao gerar PDF:', error);
     res.status(500).json({ success: false, message: 'Erro ao enviar formulário.' });
   }
 });
+
+// Utilitário opcional para melhorar legibilidade dos nomes de campo
+function formatarCampo(campo) {
+  return campo
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase());
+}
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
