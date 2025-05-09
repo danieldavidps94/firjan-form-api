@@ -1,19 +1,29 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import pdfMake from 'pdfmake/build/pdfmake.js';
-import pdfFonts from 'pdfmake/build/vfs_fonts.js';
+import axios from 'axios';
+import PdfPrinter from 'pdfmake';
+import { vfs } from 'pdfmake/build/vfs_fonts.js'; // ✅ vfs diretamente importado
 
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-const PORT = process.env.PORT || 10000;
+const fonts = {
+  Roboto: {
+    normal: 'Roboto-Regular.ttf',
+    bold: 'Roboto-Medium.ttf',
+    italics: 'Roboto-Italic.ttf',
+    bolditalics: 'Roboto-MediumItalic.ttf'
+  }
+};
 
-// Aponta para fontes embutidas no build
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+const printer = new PdfPrinter(fonts);
+printer.vfs = vfs; // ✅ atribui vfs diretamente
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
@@ -23,29 +33,30 @@ app.post('/enviar', async (req, res) => {
       { text: 'Formulário - Firjan SENAI', style: 'header' },
       '\n',
       ...Object.entries(formData).map(([key, value]) => ({
-        text: `${formatarCampo(key)}: ${Array.isArray(value) ? value.join(', ') : value}`,
-        margin: [0, 2],
+        text: `${key}: ${Array.isArray(value) ? value.join(', ') : value}`,
+        margin: [0, 2]
       }))
     ],
     styles: {
       header: { fontSize: 16, bold: true, alignment: 'center' }
     },
     defaultStyle: {
-      font: 'Roboto' // Fonte padrão já incluída no build
+      font: 'Roboto'
     }
   };
 
-  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+  const pdfDoc = printer.createPdfKitDocument(docDefinition);
+  const chunks = [];
 
-  pdfDocGenerator.getBuffer((buffer) => {
+  pdfDoc.on('data', (chunk) => chunks.push(chunk));
+  pdfDoc.on('end', () => {
+    const pdfBuffer = Buffer.concat(chunks);
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(buffer);
+    res.send(pdfBuffer);
   });
-});
 
-function formatarCampo(campo) {
-  return campo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
+  pdfDoc.end();
+});
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
