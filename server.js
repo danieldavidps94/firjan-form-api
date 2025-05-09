@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import PdfPrinter from 'pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // Importa corretamente com .js
+import pdfMake from 'pdfmake/build/pdfmake.js';
+import pdfFonts from 'pdfmake/build/vfs_fonts.js';
 
 dotenv.config();
 
@@ -12,20 +12,8 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 10000;
 
-// Usa a fonte Roboto (única disponível por padrão no pdfmake)
-const fonts = {
-  Roboto: {
-    normal: 'Roboto-Regular',
-    bold: 'Roboto-Medium',
-    italics: 'Roboto-Italic',
-    bolditalics: 'Roboto-MediumItalic',
-  },
-};
-
-const printer = new PdfPrinter(fonts);
-
-// ✅ CORRETO: acessa vfs diretamente
-printer.vfs = pdfFonts.vfs;
+// Aponta para fontes embutidas no build
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
@@ -41,20 +29,18 @@ app.post('/enviar', async (req, res) => {
     ],
     styles: {
       header: { fontSize: 16, bold: true, alignment: 'center' }
+    },
+    defaultStyle: {
+      font: 'Roboto' // Fonte padrão já incluída no build
     }
   };
 
-  const pdfDoc = printer.createPdfKitDocument(docDefinition);
-  const chunks = [];
+  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
 
-  pdfDoc.on('data', chunk => chunks.push(chunk));
-  pdfDoc.on('end', () => {
-    const pdfBuffer = Buffer.concat(chunks);
+  pdfDocGenerator.getBuffer((buffer) => {
     res.setHeader('Content-Type', 'application/pdf');
-    res.send(pdfBuffer);
+    res.send(buffer);
   });
-
-  pdfDoc.end();
 });
 
 function formatarCampo(campo) {
