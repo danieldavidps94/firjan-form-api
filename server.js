@@ -8,14 +8,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Configuração de CORS permitindo apenas o domínio específico
-const corsOptions = {
-  origin: 'https://danieldavidps94.github.io', // Domínio que pode acessar sua API
-};
-
-app.use(cors(corsOptions)); // Aplica o CORS com a configuração
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Adicionando o endpoint de login
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // Lógica de validação de login (exemplo simples)
+  if (username === 'usuario' && password === 'senha') {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, message: 'Usuário ou senha inválidos.' });
+  }
+});
+
+// Endpoint para enviar o formulário (já existe no seu código)
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
@@ -23,8 +31,8 @@ app.post('/enviar', async (req, res) => {
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text('Formulário - Firjan SENAI', 10, 20);
-
     let yPosition = 30;
+
     Object.entries(formData).forEach(([key, value]) => {
       doc.text(`${key}: ${Array.isArray(value) ? value.join(', ') : value}`, 10, yPosition);
       yPosition += 10;
