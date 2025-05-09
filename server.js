@@ -8,28 +8,28 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+// Configuração de CORS permitindo apenas o domínio específico
+const corsOptions = {
+  origin: 'https://danieldavidps94.github.io', // Domínio que pode acessar sua API
+};
+
+app.use(cors(corsOptions)); // Aplica o CORS com a configuração
 app.use(express.json({ limit: '10mb' }));
 
 app.post('/enviar', async (req, res) => {
   const formData = req.body;
 
   try {
-    // Criar um novo documento PDF
     const doc = new jsPDF();
     doc.setFontSize(16);
-
-    // Adicionar título
     doc.text('Formulário - Firjan SENAI', 10, 20);
 
-    // Adicionar os dados do formulário
     let yPosition = 30;
     Object.entries(formData).forEach(([key, value]) => {
       doc.text(`${key}: ${Array.isArray(value) ? value.join(', ') : value}`, 10, yPosition);
       yPosition += 10;
     });
 
-    // Gerar o PDF e enviar como resposta
     const pdfBuffer = doc.output('arraybuffer');
     res.setHeader('Content-Type', 'application/pdf');
     res.send(Buffer.from(pdfBuffer));
