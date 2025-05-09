@@ -5,7 +5,7 @@ import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import PdfPrinter from 'pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // Corrigido para .js
+import { pdfFonts } from 'pdfmake/build/vfs_fonts';  // Corrigido para importar de forma correta
 
 dotenv.config();
 
@@ -48,11 +48,11 @@ app.post('/enviar', async (req, res) => {
   try {
     // Criar PDF com pdfmake
     const fonts = {
-      Roboto: {
-        normal: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
-        bold: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
-        italics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
-        bolditalics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64'),
+      Arial: {
+        normal: 'Arial',
+        bold: 'Arial',
+        italics: 'Arial',
+        bolditalics: 'Arial',
       }
     };
 
