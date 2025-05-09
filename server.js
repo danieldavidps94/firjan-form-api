@@ -5,7 +5,7 @@ import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import PdfPrinter from 'pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import pdfFonts from 'pdfmake/build/vfs_fonts.js'; // Corrigido para .js
 
 dotenv.config();
 
@@ -48,13 +48,13 @@ app.post('/enviar', async (req, res) => {
   try {
     // Criar PDF com pdfmake
     const fonts = {
-  Roboto: {
-    normal: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
-    bold: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
-    italics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
-    bolditalics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64'),
-  }
-  };
+      Roboto: {
+        normal: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Regular.ttf'], 'base64'),
+        bold: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Medium.ttf'], 'base64'),
+        italics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-Italic.ttf'], 'base64'),
+        bolditalics: Buffer.from(pdfFonts.pdfMake.vfs['Roboto-MediumItalic.ttf'], 'base64'),
+      }
+    };
 
     const printer = new PdfPrinter(fonts);
 
@@ -81,21 +81,25 @@ app.post('/enviar', async (req, res) => {
       const filename = `formulario-${Date.now()}.pdf`;
 
       // Enviar PDF para GitHub
-      await axios.put(
-        `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
-        {
-          message: `Novo formulário: ${filename}`,
-          content: pdfBuffer.toString('base64'),
-        },
-        {
-          headers: {
-            Authorization: `token ${process.env.GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github+json',
+      try {
+        await axios.put(
+          `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${filename}`,
+          {
+            message: `Novo formulário: ${filename}`,
+            content: pdfBuffer.toString('base64'),
           },
-        }
-      );
-
-      res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
+          {
+            headers: {
+              Authorization: `token ${process.env.GITHUB_TOKEN}`,
+              Accept: 'application/vnd.github+json',
+            },
+          }
+        );
+        res.status(200).json({ success: true, message: 'Formulário enviado com sucesso.' });
+      } catch (githubError) {
+        console.error('Erro ao enviar PDF para o GitHub:', githubError);
+        res.status(500).json({ success: false, message: 'Erro ao enviar PDF para o GitHub.' });
+      }
     });
 
     pdfDoc.end();
